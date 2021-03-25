@@ -1,0 +1,99 @@
+---
+# @Description: An example ... .
+# @Fonts:
+#   - https://
+
+# Compose and Docker compatibility matrix.
+# Compose file format: 3.7
+# Docker Engine release: 18.06.0+
+version: "3.7"
+
+# Defining docker volumes with the DRIVER(local).
+volumes:
+  volume_mariadb:
+    driver: local # Path: /var/lib/docker/volumes/quickstart-wordpress_volume_mariadb/_data
+  volume_wordpress:
+    driver: local # Path: /var/lib/docker/volumes/quickstart-wordpress_volume_wordpres/_data
+
+# Defining a local network with the DRIVER(bridge).
+networks:
+  network_local:
+    external: false
+
+# Defining container services for Compose.
+services:
+
+  # ...
+  mariadb:
+    image: mariadb:10.5.9 # Official image of the Docker Hub.
+    container_name: wp_mariadb
+    environment:
+      MYSQL_USER: root
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: wordpress
+      MYSQL_PASSWORD: password
+    restart: always
+    volumes:
+      - volume_mariadb:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - network_local
+
+  # ...
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.1.0 # Official image of the Docker Hub.
+    container_name: wp_phpmyadmin
+    environment:
+      PMA_HOST: mariadb # Define address/host name of the MySQL server.
+      PMA_PORT: 3306 # Define port of the MySQL server.
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_USER: root
+      MYSQL_PASSWORD: password
+    depends_on:
+      - mariadb
+    restart: always
+    ports:
+      - "8081:80"
+    networks:
+      - network_local
+
+  # ...
+  wordpress:
+    image: wordpress:php7.3-fpm # Official image of the Docker Hub.
+    container_name: wp_wordpress
+    environment:
+      WORDPRESS_DB_HOST: mariadb:3306
+      WORDPRESS_DB_USER: root
+      WORDPRESS_DB_PASSWORD: password
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_TABLE_PREFIX: wp_
+      WORDPRESS_DEBUG: 1
+    depends_on:
+      - mariadb
+    restart: always
+    volumes:
+      - volume_wordpress:/var/www/html
+      - ./wordpress-files/themes:/var/www/html/wp-content/themes
+      - ./wordpress-files/plugins:/var/www/html/wp-content/plugins
+      - ./wordpress-files/wp-config.php:/var/www/html/wp-config.php
+      - ./wordpress-files/php.conf.ini:/usr/local/etc/php/conf.d/conf.ini
+    ports:
+      - "9000:9000"
+    networks:
+      - network_local
+
+  # ...
+  nginx:
+    image: nginx:1.18.0 # Official image of the Docker Hub.
+    container_name: wp_nginx
+    depends_on:
+      - wordpress
+    restart: always
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - volume_wordpress:/var/www/html
+    ports:
+      - "80:80"
+    networks:
+      - network_local
